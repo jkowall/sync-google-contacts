@@ -37,6 +37,20 @@ def test_oauth_local_port_rejects_non_integer(monkeypatch):
         module._oauth_local_port()
 
 
+def test_oauth_bind_addr_defaults_to_none(monkeypatch):
+    module = load_module()
+    monkeypatch.delenv(module.OAUTH_BIND_ADDR_ENV, raising=False)
+
+    assert module._oauth_bind_addr() is None
+
+
+def test_oauth_bind_addr_uses_environment(monkeypatch):
+    module = load_module()
+    monkeypatch.setenv(module.OAUTH_BIND_ADDR_ENV, "0.0.0.0")
+
+    assert module._oauth_bind_addr() == "0.0.0.0"
+
+
 def test_arg_parser_requires_user():
     module = load_module()
     parser = module.build_arg_parser()

@@ -43,7 +43,8 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 
 SECRET_JSON = '~/.google/authdata/client_secret.json'
 SCOPES = ['https://www.googleapis.com/auth/contacts']
-OAUTH_LOCAL_HOST = '127.0.0.1'
+OAUTH_LOCAL_HOST = 'localhost'
+OAUTH_BIND_ADDR_ENV = 'GOOGLE_OAUTH_BIND_ADDR'
 OAUTH_LOCAL_PORT_ENV = 'GOOGLE_OAUTH_LOCAL_PORT'
 DEFAULT_BACKUP_DIR = '~/.google/contacts-sync-backups'
 
@@ -54,6 +55,10 @@ def _oauth_local_port():
         return int(port_str)
     except ValueError:
         raise RuntimeError('{0} must be an integer port number'.format(OAUTH_LOCAL_PORT_ENV))
+
+
+def _oauth_bind_addr():
+    return os.environ.get(OAUTH_BIND_ADDR_ENV) or None
 
 
 def safe_filename(value):
@@ -177,6 +182,7 @@ class UserContacts(object):
                 flow = InstalledAppFlow.from_client_secrets_file(
                     client_secret_file or os.path.expanduser(SECRET_JSON), SCOPES)
                 creds = flow.run_local_server(host=OAUTH_LOCAL_HOST,
+                                              bind_addr=_oauth_bind_addr(),
                                               port=_oauth_local_port(),
                                               open_browser=False)
                 # Save the credentials for the next run
