@@ -15,6 +15,7 @@ https://github.com/michael-adler/sync-google-contacts
 - Added setup and dry-run notes in `README.md`.
 - Treated missing `--private` arguments as an empty list.
 - Added explicit GPL-2.0 license files matching the upstream script.
+- Added a GitHub Actions test workflow for Python 3.11, 3.12, and 3.13.
 
 ### Validation
 
