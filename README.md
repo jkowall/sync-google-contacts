@@ -39,7 +39,7 @@ Enable the People API in the Google Cloud project that owns that OAuth client.
 For the initial local test:
 
 ```sh
-.venv/bin/python contacts-sync.py --dry-run --user jkowall@gmail.com --user jewman@gmail.com
+.venv/bin/python contacts-sync.py --dry-run --user jkowall@gmail.com --user jonahk@spacelift.io
 ```
 
 Every run saves a timestamped JSON backup before merge processing starts:
