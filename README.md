@@ -15,22 +15,53 @@ Local changes are tracked in [CHANGELOG.md](CHANGELOG.md).
 This working copy is licensed under GPL-2.0-or-later, matching the upstream
 script. See `LICENSE`.
 
-## Setup
+## Python Setup
 
 ```sh
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 ```
 
-Place your OAuth desktop client secret at:
+## Google Cloud Setup
+
+1. Open Google Cloud Console:
+   https://console.cloud.google.com/
+2. Create or select a project for this sync tool.
+3. Enable the People API:
+   https://console.cloud.google.com/apis/library/people.googleapis.com
+4. Configure the OAuth consent screen:
+   - Open APIs & Services > OAuth consent screen.
+   - Choose External for personal Gmail accounts, unless your workspace requires
+     Internal.
+   - Set an app name such as `Contacts Sync`.
+   - Add your email as the support and developer contact.
+   - Add test users for every account you plan to authenticate, for example:
+     `jkowall@gmail.com` and `jonahk@spacelift.io`.
+5. Create OAuth credentials:
+   - Open APIs & Services > Credentials.
+   - Click Create Credentials > OAuth client ID.
+   - Choose Desktop app.
+   - Name it something like `Contacts Sync Local`.
+   - Download the JSON file.
+
+Store OAuth desktop client JSON files outside the repository:
 
 ```text
 ~/.google/authdata/client_secret.json
 ```
 
-Enable the People API in the Google Cloud project that owns that OAuth client.
 If you use separate OAuth clients per account, keep them in the same private
 directory and pass `--client-secret-for user=path`.
+
+For the current local setup:
+
+```sh
+mkdir -p ~/.google/authdata
+cp ~/Downloads/gmail.json ~/.google/authdata/gmail.json
+cp ~/Downloads/spacelift.json ~/.google/authdata/spacelift.json
+chmod 700 ~/.google ~/.google/authdata
+chmod 600 ~/.google/authdata/*.json
+```
 
 ## Dry Run
 
