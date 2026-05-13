@@ -1,0 +1,18 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Google OAuth secrets, generated tokens, and local sync state
+.google/
+client_secret.json
+contacts-credentials-*.json
+contacts-sync-state-*
+
+# Local editor and OS files
+.DS_Store
+.idea/
+.vscode/
+*~

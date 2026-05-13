@@ -1,0 +1,63 @@
+import importlib.util
+from pathlib import Path
+
+import pytest
+
+
+MODULE_PATH = Path(__file__).resolve().parents[1] / "contacts-sync.py"
+
+
+def load_module():
+    spec = importlib.util.spec_from_file_location("contacts_sync", MODULE_PATH)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_oauth_local_port_defaults_to_8765(monkeypatch):
+    module = load_module()
+    monkeypatch.delenv(module.OAUTH_LOCAL_PORT_ENV, raising=False)
+
+    assert module._oauth_local_port() == 8765
+
+
+def test_oauth_local_port_uses_environment(monkeypatch):
+    module = load_module()
+    monkeypatch.setenv(module.OAUTH_LOCAL_PORT_ENV, "9876")
+
+    assert module._oauth_local_port() == 9876
+
+
+def test_oauth_local_port_rejects_non_integer(monkeypatch):
+    module = load_module()
+    monkeypatch.setenv(module.OAUTH_LOCAL_PORT_ENV, "not-a-port")
+
+    with pytest.raises(RuntimeError, match=module.OAUTH_LOCAL_PORT_ENV):
+        module._oauth_local_port()
+
+
+def test_arg_parser_requires_user():
+    module = load_module()
+    parser = module.build_arg_parser()
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--dry-run"])
+
+
+def test_arg_parser_allows_multiple_users_and_private_groups():
+    module = load_module()
+    parser = module.build_arg_parser()
+
+    args = parser.parse_args([
+        "--dry-run",
+        "--user",
+        "one@example.com",
+        "--user",
+        "two@example.com",
+        "--private",
+        "Family",
+    ])
+
+    assert args.dry_run is True
+    assert args.user == ["one@example.com", "two@example.com"]
+    assert args.private == ["Family"]
