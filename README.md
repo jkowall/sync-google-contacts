@@ -29,6 +29,8 @@ Place your OAuth desktop client secret at:
 ```
 
 Enable the People API in the Google Cloud project that owns that OAuth client.
+If you use separate OAuth clients per account, keep them in the same private
+directory and pass `--client-secret-for user=path`.
 
 ## Dry Run
 
@@ -40,6 +42,16 @@ For the initial local test:
 
 ```sh
 .venv/bin/python contacts-sync.py --dry-run --user jkowall@gmail.com --user jonahk@spacelift.io
+```
+
+With the current local OAuth files:
+
+```sh
+.venv/bin/python contacts-sync.py --dry-run \
+  --user jkowall@gmail.com \
+  --user jonahk@spacelift.io \
+  --client-secret-for jkowall@gmail.com=~/.google/authdata/gmail.json \
+  --client-secret-for jonahk@spacelift.io=~/.google/authdata/spacelift.json
 ```
 
 Every run saves a timestamped JSON backup before merge processing starts:

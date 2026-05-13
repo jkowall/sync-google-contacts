@@ -41,7 +41,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-SECRET_JSON = '.google/authdata/client_secret.json'
+SECRET_JSON = '~/.google/authdata/client_secret.json'
 SCOPES = ['https://www.googleapis.com/auth/contacts']
 OAUTH_LOCAL_HOST = '127.0.0.1'
 OAUTH_LOCAL_PORT_ENV = 'GOOGLE_OAUTH_LOCAL_PORT'
@@ -58,6 +58,22 @@ def _oauth_local_port():
 
 def safe_filename(value):
     return re.sub(r'[^A-Za-z0-9_.@-]+', '_', value)
+
+
+def resolve_client_secrets(default_secret, user_secret_args):
+    user_secrets = {}
+    for entry in user_secret_args or []:
+        if '=' not in entry:
+            raise RuntimeError('--client-secret-for must be in the form user=path')
+        user, path = entry.split('=', 1)
+        if not user or not path:
+            raise RuntimeError('--client-secret-for must be in the form user=path')
+        user_secrets[user] = path
+    return default_secret, user_secrets
+
+
+def client_secret_for_user(user, default_secret, user_secrets):
+    return os.path.expanduser(user_secrets.get(user, default_secret))
 
 
 def backup_contacts(users, contacts, backup_dir):
@@ -121,7 +137,7 @@ debug = 0
 class UserContacts(object):
     """UserContacts object loads Google contacts from an account"""
 
-    def __init__(self, user, flags = None, createuid = True):
+    def __init__(self, user, flags = None, createuid = True, client_secret_file = None):
         """Constructor for the UserContacts object.
 
         Takes a user name that will be used to find an OAuth2 stored credential.
@@ -159,7 +175,7 @@ class UserContacts(object):
                 print('If browser runs on a different host, tunnel callback port first:')
                 print('  ssh -L {0}:127.0.0.1:{0} <this-host>'.format(_oauth_local_port()))
                 flow = InstalledAppFlow.from_client_secrets_file(
-                    os.path.join(user_dir, SECRET_JSON), SCOPES)
+                    client_secret_file or os.path.expanduser(SECRET_JSON), SCOPES)
                 creds = flow.run_local_server(host=OAUTH_LOCAL_HOST,
                                               port=_oauth_local_port(),
                                               open_browser=False)
@@ -1039,6 +1055,14 @@ def build_arg_parser():
                         help='Directory for timestamped pre-sync JSON backups. Default: ' +
                              DEFAULT_BACKUP_DIR)
 
+    parser.add_argument('--client-secret', default=SECRET_JSON,
+                        help='Default OAuth desktop client secret JSON. Default: ' +
+                             SECRET_JSON)
+
+    parser.add_argument('--client-secret-for', action='append',
+                        help='Per-user OAuth client secret in the form user=path. ' +
+                             'Can be specified multiple times.')
+
     parser.add_argument('--debug', nargs='?', const=1, default=0, type=int,
                         help='Set debug level (0=off). If specified without a value, sets to 1.')
 
@@ -1054,6 +1078,8 @@ def main():
 
     users = flags.user
     pvt_grp_names = flags.private or []
+    default_client_secret, user_client_secrets = resolve_client_secrets(
+        flags.client_secret, flags.client_secret_for)
     enableUpdates = not flags.dry_run
     debug = flags.debug
 
@@ -1068,7 +1094,9 @@ def main():
         for i in range(len(users)):
             contacts.append(UserContacts(users[i],
                                          flags = flags,
-                                         createuid = False))
+                                         createuid = False,
+                                         client_secret_file = client_secret_for_user(
+                                             users[i], default_client_secret, user_client_secrets)))
         AddUids(contacts)
 
     ##
@@ -1076,7 +1104,10 @@ def main():
     ##
     contacts = []
     for i in range(len(users)):
-        contacts.append(UserContacts(users[i], flags = flags))
+        contacts.append(UserContacts(users[i],
+                                     flags = flags,
+                                     client_secret_file = client_secret_for_user(
+                                         users[i], default_client_secret, user_client_secrets)))
 
     if flags.skip_backup:
         print('Skipping pre-sync backup.')

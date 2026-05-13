@@ -70,6 +70,28 @@ def test_safe_filename_removes_unsafe_characters():
     assert module.safe_filename("one+two@example.com") == "one_two@example.com"
 
 
+def test_resolve_client_secrets_maps_user_specific_paths():
+    module = load_module()
+
+    default_secret, user_secrets = module.resolve_client_secrets(
+        "~/.google/authdata/client_secret.json",
+        ["one@example.com=/tmp/one.json", "two@example.com=/tmp/two.json"],
+    )
+
+    assert default_secret == "~/.google/authdata/client_secret.json"
+    assert user_secrets == {
+        "one@example.com": "/tmp/one.json",
+        "two@example.com": "/tmp/two.json",
+    }
+
+
+def test_resolve_client_secrets_rejects_invalid_mapping():
+    module = load_module()
+
+    with pytest.raises(RuntimeError, match="user=path"):
+        module.resolve_client_secrets("default.json", ["not-a-mapping"])
+
+
 def test_backup_contacts_writes_manifest_and_user_files(tmp_path):
     module = load_module()
 
