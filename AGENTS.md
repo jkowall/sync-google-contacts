@@ -22,6 +22,8 @@ API. Preserve the upstream GPL-2.0-or-later licensing and author attribution.
 - Avoid live Google API calls in unit tests. Mock credentials, OAuth flows, and
   API clients instead.
 - Keep contact-changing behavior behind `--dry-run` during manual validation.
+- Preserve automatic pre-sync backups. Any change that can write contacts should
+  either use the backup path or explicitly document why it is safe without one.
 
 ## Validation
 
@@ -45,3 +47,4 @@ python3 -m venv .venv
 - Keep `~/.google/authdata/client_secret.json` and generated credentials outside
   this repository.
 - Prefer dry-run examples in docs.
+- Do not commit generated backup files from `~/.google/contacts-sync-backups`.

@@ -26,6 +26,7 @@ __version__ = "0.2"
 
 import argparse
 import datetime
+import json
 import os
 import sys
 import re
@@ -44,6 +45,7 @@ SECRET_JSON = '.google/authdata/client_secret.json'
 SCOPES = ['https://www.googleapis.com/auth/contacts']
 OAUTH_LOCAL_HOST = '127.0.0.1'
 OAUTH_LOCAL_PORT_ENV = 'GOOGLE_OAUTH_LOCAL_PORT'
+DEFAULT_BACKUP_DIR = '~/.google/contacts-sync-backups'
 
 
 def _oauth_local_port():
@@ -52,6 +54,52 @@ def _oauth_local_port():
         return int(port_str)
     except ValueError:
         raise RuntimeError('{0} must be an integer port number'.format(OAUTH_LOCAL_PORT_ENV))
+
+
+def safe_filename(value):
+    return re.sub(r'[^A-Za-z0-9_.@-]+', '_', value)
+
+
+def backup_contacts(users, contacts, backup_dir):
+    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+    backup_root = os.path.expanduser(backup_dir)
+    run_dir = os.path.join(backup_root, timestamp)
+    os.makedirs(run_dir, mode=0o700, exist_ok=False)
+
+    manifest = {
+        'created_at': timestamp,
+        'users': [],
+    }
+
+    for user, user_contacts in zip(users, contacts):
+        user_file = safe_filename(user) + '.json'
+        groups = dict(user_contacts.GroupIterItems())
+        contact_items = dict(user_contacts.ContactIterItems())
+        payload = {
+            'user': user,
+            'created_at': timestamp,
+            'group_count': len(groups),
+            'contact_count': len(contact_items),
+            'groups': groups,
+            'contacts': contact_items,
+        }
+        path = os.path.join(run_dir, user_file)
+        with open(path, 'w', encoding='utf-8') as backup:
+            json.dump(payload, backup, indent=2, sort_keys=True)
+            backup.write('\n')
+
+        manifest['users'].append({
+            'user': user,
+            'file': user_file,
+            'group_count': len(groups),
+            'contact_count': len(contact_items),
+        })
+
+    with open(os.path.join(run_dir, 'manifest.json'), 'w', encoding='utf-8') as manifest_file:
+        json.dump(manifest, manifest_file, indent=2, sort_keys=True)
+        manifest_file.write('\n')
+
+    return run_dir
 
 MAX_RESULTS = 10000
 SYNC_ID_TAG = 'csync-uid'
@@ -984,6 +1032,13 @@ def build_arg_parser():
     parser.add_argument('--dry-run', action='store_true',
                         help='Prevents writes to the Google servers.')
 
+    parser.add_argument('--skip-backup', action='store_true',
+                        help='Skip the pre-sync JSON backup. Not recommended for real sync runs.')
+
+    parser.add_argument('--backup-dir', default=DEFAULT_BACKUP_DIR,
+                        help='Directory for timestamped pre-sync JSON backups. Default: ' +
+                             DEFAULT_BACKUP_DIR)
+
     parser.add_argument('--debug', nargs='?', const=1, default=0, type=int,
                         help='Set debug level (0=off). If specified without a value, sets to 1.')
 
@@ -1022,6 +1077,12 @@ def main():
     contacts = []
     for i in range(len(users)):
         contacts.append(UserContacts(users[i], flags = flags))
+
+    if flags.skip_backup:
+        print('Skipping pre-sync backup.')
+    else:
+        backup_path = backup_contacts(users, contacts, flags.backup_dir)
+        print('Saved pre-sync backup: {0}'.format(backup_path))
 
     ## Merge groups across all users
     MergeGroups(users, contacts)

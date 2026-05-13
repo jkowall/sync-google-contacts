@@ -1,4 +1,5 @@
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -61,3 +62,41 @@ def test_arg_parser_allows_multiple_users_and_private_groups():
     assert args.dry_run is True
     assert args.user == ["one@example.com", "two@example.com"]
     assert args.private == ["Family"]
+
+
+def test_safe_filename_removes_unsafe_characters():
+    module = load_module()
+
+    assert module.safe_filename("one+two@example.com") == "one_two@example.com"
+
+
+def test_backup_contacts_writes_manifest_and_user_files(tmp_path):
+    module = load_module()
+
+    class FakeContacts:
+        def GroupIterItems(self):
+            return iter({
+                "contactGroups/family": {"name": "Family"},
+            }.items())
+
+        def ContactIterItems(self):
+            return iter({
+                "uid-1": {"names": [{"displayName": "Test User"}]},
+            }.items())
+
+    backup_dir = module.backup_contacts(["one@example.com"], [FakeContacts()], str(tmp_path))
+    backup_path = Path(backup_dir)
+
+    manifest = json.loads((backup_path / "manifest.json").read_text(encoding="utf-8"))
+    user_backup = json.loads((backup_path / "one@example.com.json").read_text(encoding="utf-8"))
+
+    assert backup_path.is_dir()
+    assert manifest["users"] == [{
+        "user": "one@example.com",
+        "file": "one@example.com.json",
+        "group_count": 1,
+        "contact_count": 1,
+    }]
+    assert user_backup["user"] == "one@example.com"
+    assert user_backup["group_count"] == 1
+    assert user_backup["contact_count"] == 1
