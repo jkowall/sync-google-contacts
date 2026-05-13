@@ -37,6 +37,7 @@ import textwrap
 import time
 
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -47,6 +48,9 @@ OAUTH_LOCAL_HOST = 'localhost'
 OAUTH_BIND_ADDR_ENV = 'GOOGLE_OAUTH_BIND_ADDR'
 OAUTH_LOCAL_PORT_ENV = 'GOOGLE_OAUTH_LOCAL_PORT'
 DEFAULT_BACKUP_DIR = '~/.google/contacts-sync-backups'
+API_WRITE_DELAY_SECONDS = 1.0
+API_RETRY_DELAYS_SECONDS = [5, 15, 30, 60]
+API_RETRY_STATUSES = {429, 500, 502, 503, 504}
 
 
 def _oauth_local_port():
@@ -63,6 +67,26 @@ def _oauth_bind_addr():
 
 def safe_filename(value):
     return re.sub(r'[^A-Za-z0-9_.@-]+', '_', value)
+
+
+def execute_google_request(request, operation):
+    for retry_index, delay in enumerate([0] + API_RETRY_DELAYS_SECONDS):
+        if delay:
+            print('{0} hit a retryable Google API limit/error; sleeping {1}s before retry {2}'.format(
+                operation, delay, retry_index))
+            time.sleep(delay)
+        try:
+            return request.execute()
+        except HttpError as exc:
+            if exc.resp.status not in API_RETRY_STATUSES or retry_index == len(API_RETRY_DELAYS_SECONDS):
+                raise
+
+    raise RuntimeError('Unexpected retry exhaustion during {0}'.format(operation))
+
+
+def execute_google_write(request, operation):
+    time.sleep(API_WRITE_DELAY_SECONDS)
+    return execute_google_request(request, operation)
 
 
 def resolve_client_secrets(default_secret, user_secret_args):
@@ -263,12 +287,12 @@ class UserContacts(object):
                                                                   user))
 
                     if enableUpdates:
-                        person = self.people.updateContact(
+                        person = execute_google_write(self.people.updateContact(
                             resourceName = person['resourceName'],
                             body = person,
                             personFields = PERSON_FIELDS,
                             sources='READ_SOURCE_TYPE_CONTACT',
-                            updatePersonFields = 'clientData').execute()
+                            updatePersonFields = 'clientData'), 'add contact sync id')
 
                 if num_uids_found > 1:
                     # Drop extra UIDs
@@ -280,12 +304,12 @@ class UserContacts(object):
                                                                             ContactGetPrintName(person),
                                                                             user))
                     if enableUpdates:
-                        person = self.people.updateContact(
+                        person = execute_google_write(self.people.updateContact(
                             resourceName = person['resourceName'],
                             body = person,
                             personFields = PERSON_FIELDS,
                             sources='READ_SOURCE_TYPE_CONTACT',
-                            updatePersonFields = 'clientData').execute()
+                            updatePersonFields = 'clientData'), 'merge duplicate contact sync ids')
 
                 self.__contacts[uid_obj['value']] = person
 
@@ -309,10 +333,10 @@ class UserContacts(object):
     ##
     def ContactAdd(self, entry):
         if enableUpdates:
-             entry = self.people.createContact(
+             entry = execute_google_write(self.people.createContact(
                  body = entry,
                  personFields = PERSON_FIELDS,
-                 sources='READ_SOURCE_TYPE_CONTACT').execute()
+                 sources='READ_SOURCE_TYPE_CONTACT'), 'create contact')
 
         self.__contacts[ContactGetUID(entry)] = entry
         return entry
@@ -323,16 +347,12 @@ class UserContacts(object):
     ##
     def ContactUpdate(self, entry):
         if enableUpdates:
-             # Update the server. Impose a delay because the Google
-             # API will fail with too high a request rate.
-             time.sleep(1)
-
-             entry = self.people.updateContact(
+             entry = execute_google_write(self.people.updateContact(
                  resourceName = entry['resourceName'],
                  body = entry,
                  personFields = PERSON_FIELDS,
                  sources='READ_SOURCE_TYPE_CONTACT',
-                 updatePersonFields = PERSON_FIELDS_UPDATE).execute()
+                 updatePersonFields = PERSON_FIELDS_UPDATE), 'update contact')
 
         self.__contacts[ContactGetUID(entry)] = entry
         return entry
@@ -344,8 +364,8 @@ class UserContacts(object):
     def ContactDelete(self, entry):
         del self.__contacts[ContactGetUID(entry)]
         if enableUpdates:
-             entry = self.people.deleteContact(
-                 resourceName = entry['resourceName']).execute()
+             entry = execute_google_write(self.people.deleteContact(
+                 resourceName = entry['resourceName']), 'delete contact')
 
     ##
     ## ContactIterItems --
@@ -403,8 +423,8 @@ class UserContacts(object):
             upd['readGroupFields'] = GROUP_FIELDS
             upd['updateGroupFields'] = 'clientData'
             self.__groups[rsrc_name] = \
-                self.__service.contactGroups().update(resourceName = group['resourceName'],
-                                                      body = upd).execute()
+                execute_google_write(self.__service.contactGroups().update(resourceName = group['resourceName'],
+                                                                           body = upd), 'update group sync id')
 
     ##
     ## GroupRename --
@@ -426,8 +446,8 @@ class UserContacts(object):
             upd['readGroupFields'] = GROUP_FIELDS
             upd['updateGroupFields'] = 'name'
             self.__groups[rsrc_name] = \
-                self.__service.contactGroups().update(resourceName = group['resourceName'],
-                                                      body = upd).execute()
+                execute_google_write(self.__service.contactGroups().update(resourceName = group['resourceName'],
+                                                                           body = upd), 'rename group')
 
     ##
     ## GroupAdd --
@@ -441,9 +461,9 @@ class UserContacts(object):
         if not enableUpdates:
             self.__groups[uid] = group
         else:
-            group = self.__service.contactGroups().create(
+            group = execute_google_write(self.__service.contactGroups().create(
                 body={'contactGroup': group,
-                      'readGroupFields': GROUP_FIELDS}).execute()
+                      'readGroupFields': GROUP_FIELDS}), 'create group')
             self.__groups[group['resourceName']] = group
 
     ##
@@ -510,12 +530,12 @@ def AddUids(contacts):
                 if debug: print('Add UID {0} to "{1}" ({2})'.format(uid, print_name, c.user))
 
             EntryAddUID(e, uid)
-            e = c.people.updateContact(
+            e = execute_google_write(c.people.updateContact(
                 resourceName = e['resourceName'],
                 body = e,
                 personFields = PERSON_FIELDS,
                 sources='READ_SOURCE_TYPE_CONTACT',
-                updatePersonFields = 'clientData').execute()
+                updatePersonFields = 'clientData'), 'add contact sync id')
 
 
 ################################################################################
