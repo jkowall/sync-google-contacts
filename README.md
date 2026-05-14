@@ -117,3 +117,65 @@ GOOGLE_OAUTH_LOCAL_PORT=8766 .venv/bin/python contacts-sync.py --dry-run --user 
    for a future restore helper script.
 5. Google Contacts also provides export and restore tools in the web UI; use
    those alongside the JSON backup for high-risk runs.
+
+## Scheduled Runs
+
+Use `scripts/run-sync.sh` for unattended sync runs. It writes logs to:
+
+```text
+~/.google/contacts-sync-logs/
+```
+
+It also uses a lock file so overlapping scheduled runs do not execute at the
+same time:
+
+```text
+~/.google/contacts-sync.lock
+```
+
+The default scheduled users are:
+
+```text
+jkowall@gmail.com
+jonahk@spacelift.io
+```
+
+The default OAuth client files are:
+
+```text
+~/.google/authdata/gmail.json
+~/.google/authdata/spacelift.json
+```
+
+### Windows Task Scheduler for WSL
+
+This is the preferred setup when the repo lives in WSL but Windows is the host
+that is always logged in.
+
+From PowerShell:
+
+```powershell
+.\scripts\install-windows-wsl-task.ps1
+```
+
+By default this creates a daily task named `Google Contacts Sync WSL` at
+`08:17`. Override the time or distro if needed:
+
+```powershell
+.\scripts\install-windows-wsl-task.ps1 -StartTime 09:00 -Distro Ubuntu
+```
+
+### Linux Cron
+
+On a Linux host with cron running:
+
+```sh
+./scripts/install-linux-cron.sh
+```
+
+The default cron schedule is daily at `08:17`. Pass a cron expression to change
+it:
+
+```sh
+./scripts/install-linux-cron.sh "12 9 * * *"
+```

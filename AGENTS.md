@@ -32,6 +32,7 @@ Run the smallest useful checks before committing:
 ```sh
 .venv/bin/python -m py_compile contacts-sync.py
 .venv/bin/python -m pytest
+bash -n scripts/run-sync.sh scripts/install-linux-cron.sh
 ```
 
 If dependencies are missing:
@@ -48,3 +49,4 @@ python3 -m venv .venv
   this repository.
 - Prefer dry-run examples in docs.
 - Do not commit generated backup files from `~/.google/contacts-sync-backups`.
+- Keep scheduler scripts idempotent and safe to rerun.

@@ -19,6 +19,8 @@ https://github.com/michael-adler/sync-google-contacts
 - Added automatic timestamped JSON backups before merge processing.
 - Documented a conservative dry-run and fallback plan.
 - Added step-by-step Google Cloud OAuth setup instructions.
+- Added scheduler scripts for daily Windows Task Scheduler WSL runs and Linux
+  cron installs.
 
 ### Validation
 
