@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## Initial Fork Release
 
 This fork modernizes and operationalizes Michael Adler's
 `sync-google-contacts` script while preserving the original GPL-2.0-or-later
