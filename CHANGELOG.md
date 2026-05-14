@@ -1,28 +1,36 @@
 # Changelog
 
-## Local working copy
+## Unreleased
 
-Based on Michael Adler's `sync-google-contacts`:
+This fork modernizes and operationalizes Michael Adler's
+`sync-google-contacts` script while preserving the original GPL-2.0-or-later
+license and People API sync behavior.
 
-https://github.com/michael-adler/sync-google-contacts
+### Added
+
+- Python dependency files for runtime and test setup.
+- Step-by-step Google Cloud OAuth setup documentation.
+- Per-account OAuth client secret mapping with `--client-secret-for`.
+- Pre-sync JSON backups with a manifest file.
+- Configurable backup directory with `--backup-dir`.
+- Optional `--skip-backup` flag for exceptional cases.
+- WSL-friendly OAuth callback binding configuration.
+- Retry and throttle handling for Google API writes.
+- Daily scheduler helpers for Windows Task Scheduler with WSL and Linux cron.
+- GitHub Actions test workflow for Python 3.11, 3.12, and 3.13.
+- Unit tests for argument parsing, OAuth configuration helpers, and backup
+  generation.
 
 ### Changed
 
-- Created a local working directory at `/home/jkowall/contacts-sync-work`.
 - Removed the deprecated `oauth2client` dependency.
-- Kept the existing Google People API implementation using `googleapiclient`.
-- Added `requirements.txt` for the current Google Python client libraries.
-- Added setup and dry-run notes in `README.md`.
-- Treated missing `--private` arguments as an empty list.
-- Added an explicit GPL-2.0 `LICENSE` file matching the upstream script.
-- Added a GitHub Actions test workflow for Python 3.11, 3.12, and 3.13.
-- Added automatic timestamped JSON backups before merge processing.
-- Documented a conservative dry-run and fallback plan.
-- Added step-by-step Google Cloud OAuth setup instructions.
-- Added scheduler scripts for daily Windows Task Scheduler WSL runs and Linux
-  cron installs.
+- Kept authentication on modern `google-auth` and `google-auth-oauthlib`.
+- Made `--private` optional without requiring callers to pass an empty value.
+- Added a standard `LICENSE` file matching the upstream GPL license.
+- Added repository instructions in `AGENTS.md`.
 
 ### Validation
 
-- Verified the updated script with `py_compile`.
-- Verified command-line parsing with `contacts-sync.py --help`.
+- `python -m py_compile contacts-sync.py`
+- `python -m pytest`
+- `bash -n scripts/run-sync.sh scripts/install-linux-cron.sh`

@@ -10,6 +10,24 @@ https://github.com/michael-adler/sync-google-contacts
 The original script is GPL licensed and credits Michael Adler as author.
 Local changes are tracked in [CHANGELOG.md](CHANGELOG.md).
 
+## Differences From Upstream
+
+This fork keeps the original goal and People API-based sync behavior, but adds
+the setup, safety, and operations pieces needed to run it regularly.
+
+- Removed the deprecated `oauth2client` dependency.
+- Added current Google Python client dependency files.
+- Added per-account OAuth client support with `--client-secret-for`.
+- Added WSL-friendly OAuth callback binding configuration.
+- Added timestamped JSON backups before merge processing.
+- Added retry and throttle handling for Google API write quota limits.
+- Added scheduler scripts for daily Windows Task Scheduler with WSL and Linux
+  cron.
+- Added setup documentation for Google Cloud OAuth, dry runs, backups, and
+  fallback handling.
+- Added unit tests and a GitHub Actions test workflow.
+- Added repo-local agent instructions in `AGENTS.md`.
+
 ## License
 
 This working copy is licensed under GPL-2.0-or-later, matching the upstream
